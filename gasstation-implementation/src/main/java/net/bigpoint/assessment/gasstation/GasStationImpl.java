@@ -3,15 +3,29 @@ package net.bigpoint.assessment.gasstation;
 import net.bigpoint.assessment.gasstation.exceptions.GasTooExpensiveException;
 import net.bigpoint.assessment.gasstation.exceptions.NotEnoughGasException;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GasStationImpl implements GasStation {
-    public void addGasPump(GasPump pump) {
 
+    private Collection<GasPump> GasPumps = new ArrayList<>();
+    private Map<GasType, Double> GasPrices = new ConcurrentHashMap<>();
+
+    private double Revenue = 0;
+    private int NumberOfSales = 0;
+    private int NumberOfCancellationsNoGas = 0;
+    private int NumberOfCancellationsTooExpensive = 0;
+
+    public void addGasPump(GasPump pump) {
+        synchronized (GasPumps) {
+            GasPumps.add(pump);
+        }
     }
 
     public Collection<GasPump> getGasPumps() {
-        return null;
+        return new ArrayList<>(GasPumps);
     }
 
     public double buyGas(GasType type, double amountInLiters, double maxPricePerLiter) throws NotEnoughGasException, GasTooExpensiveException {
@@ -19,26 +33,26 @@ public class GasStationImpl implements GasStation {
     }
 
     public double getRevenue() {
-        return 0;
+        return Revenue;
     }
 
     public int getNumberOfSales() {
-        return 0;
+        return NumberOfSales;
     }
 
     public int getNumberOfCancellationsNoGas() {
-        return 0;
+        return NumberOfCancellationsNoGas;
     }
 
     public int getNumberOfCancellationsTooExpensive() {
-        return 0;
+        return NumberOfCancellationsTooExpensive;
     }
 
     public double getPrice(GasType type) {
-        return 0;
+        return GasPrices.get(type);
     }
 
     public void setPrice(GasType type, double price) {
-
+        GasPrices.put(type, price);
     }
 }
