@@ -10,22 +10,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class GasStationImpl implements GasStation {
 
-    private Collection<GasPump> GasPumps = new ArrayList<>();
-    private Map<GasType, Double> GasPrices = new ConcurrentHashMap<>();
+    private Collection<GasPump> gasPumps = new ArrayList<>();
+    private Map<GasType, Double> gasPrices = new ConcurrentHashMap<>();
 
-    private double Revenue = 0;
-    private int NumberOfSales = 0;
-    private int NumberOfCancellationsNoGas = 0;
-    private int NumberOfCancellationsTooExpensive = 0;
+    private double revenue = 0;
+    private int numberOfSales = 0;
+    private int numberOfCancellationsNoGas = 0;
+    private int numberOfCancellationsTooExpensive = 0;
 
     public void addGasPump(GasPump pump) {
-        synchronized (GasPumps) {
-            GasPumps.add(pump);
+        synchronized (gasPumps) {
+            gasPumps.add(pump);
         }
     }
 
     public Collection<GasPump> getGasPumps() {
-        return new ArrayList<>(GasPumps);
+        return new ArrayList<>(gasPumps);
     }
 
     public double buyGas(GasType type, double amountInLiters, double maxPricePerLiter) throws NotEnoughGasException, GasTooExpensiveException {
@@ -33,26 +33,26 @@ public class GasStationImpl implements GasStation {
     }
 
     public double getRevenue() {
-        return Revenue;
+        return revenue;
     }
 
     public int getNumberOfSales() {
-        return NumberOfSales;
+        return numberOfSales;
     }
 
     public int getNumberOfCancellationsNoGas() {
-        return NumberOfCancellationsNoGas;
+        return numberOfCancellationsNoGas;
     }
 
     public int getNumberOfCancellationsTooExpensive() {
-        return NumberOfCancellationsTooExpensive;
+        return numberOfCancellationsTooExpensive;
     }
 
     public double getPrice(GasType type) {
-        return GasPrices.get(type);
+        return gasPrices.get(type);
     }
 
     public void setPrice(GasType type, double price) {
-        GasPrices.put(type, price);
+        gasPrices.put(type, price);
     }
 }
