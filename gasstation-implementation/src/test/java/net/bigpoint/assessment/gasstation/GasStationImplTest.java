@@ -106,7 +106,16 @@ class GasStationImplTest {
         cars.forEach((gasType, v) -> {
             gasStation.setPrice(gasType, 5);
             for (int i = 0; i < v; i++) {
-
+                Thread thread = new Thread(() -> {
+                    try {
+                        gasStation.buyGas(gasType, 10, 10);
+                    } catch (NotEnoughGasException e) {
+                        e.printStackTrace();
+                    } catch (GasTooExpensiveException e) {
+                        e.printStackTrace();
+                    }
+                });
+                threads.add(thread);
             }
         });
 
