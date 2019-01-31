@@ -62,6 +62,8 @@ public class GasStationImpl implements GasStation {
         }
 
         pump.pumpGas(amountInLiters);
+        // System.out.printf("Finished buying gas %s.%n", type.toString());
+
         // add back the pump to the available ones
         synchronized (availablePumps) {
             availablePumps.add(pump);
@@ -106,8 +108,11 @@ public class GasStationImpl implements GasStation {
 
     /**
      * Gets a free gas pump with enough gas
+     *
      * @param type
+     *            The type of gas the customer wants to buy
      * @param amountInLiters
+     *            The amount of gas the customer wants to buy. Nothing less than this amount is acceptable!
      * @return available pump or null if there is no pump currently available
      * @throws NotEnoughGasException
      *              Thrown if there is no pump with enough gas
