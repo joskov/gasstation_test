@@ -6,10 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -90,7 +87,7 @@ class GasStationImplTest {
 
     @Test
     @Disabled("Performance / Smoke Test")
-    void testMultiThreadTest() {
+    void testMultiThreadAll() {
         long startTime = System.currentTimeMillis();
 
         gasStation.addGasPump(new GasPump(GasType.REGULAR, 250));
@@ -109,16 +106,7 @@ class GasStationImplTest {
         cars.forEach((gasType, v) -> {
             gasStation.setPrice(gasType, 5);
             for (int i = 0; i < v; i++) {
-                Thread thread = new Thread(() -> {
-                    try {
-                        gasStation.buyGas(gasType, 10, 10);
-                    } catch (NotEnoughGasException e) {
-                        e.printStackTrace();
-                    } catch (GasTooExpensiveException e) {
-                        e.printStackTrace();
-                    }
-                });
-                threads.add(thread);
+
             }
         });
 
@@ -134,7 +122,51 @@ class GasStationImplTest {
         }
 
         System.out.printf("Execution time %.2fs.%n", (System.currentTimeMillis() - startTime) / 1000.f);
+    }
 
+    @Test
+    @Disabled("Smoke test.")
+    void testMultiThreadRandom() {
+        long startTime = System.currentTimeMillis();
+        Random rand = new Random();
+
+        // seed gas pumps
+        for (GasType gasType : GasType.values()) {
+            for (int i = 0; i <= rand.nextInt(4); i++) {
+                gasStation.addGasPump(new GasPump(gasType, 250));
+            }
+            gasStation.setPrice(gasType, rand.nextInt(10) + 1);
+        }
+
+        // seed cars
+        List<Thread> threads = new ArrayList<>();
+        for (GasType gasType : GasType.values()) {
+            for (int i = rand.nextInt(10) + 1; i > 0; i--) {
+                Thread thread = new Thread(() -> {
+                    try {
+                        gasStation.buyGas(gasType, rand.nextInt(20) + 5, 10);
+                    } catch (NotEnoughGasException e) {
+                        e.printStackTrace();
+                    } catch (GasTooExpensiveException e) {
+                        e.printStackTrace();
+                    }
+                });
+                threads.add(thread);
+            }
+        }
+
+        // start the threads
+        threads.forEach(thread -> thread.start());
+        // wait for the threads to finish
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        System.out.printf("Execution time %.2fs.%n", (System.currentTimeMillis() - startTime) / 1000.f);
     }
 
 }

@@ -20,7 +20,7 @@ public class GasStationImpl implements GasStation {
     private AtomicInteger numberOfCancellationsNoGas = new AtomicInteger();
     private AtomicInteger numberOfCancellationsTooExpensive = new AtomicInteger();
 
-    private List<Thread> waitingQueue = new ArrayList<>();
+    private List<Object> waitingQueue = new ArrayList<>();
 
     private Object gasPumpSearchLock = new Object();
 
@@ -36,12 +36,13 @@ public class GasStationImpl implements GasStation {
     }
 
     public double buyGas(GasType type, double amountInLiters, double maxPricePerLiter) throws NotEnoughGasException, GasTooExpensiveException {
+        // System.out.printf("Buy %.2fl %s (max price %.2f).%n", amountInLiters, type, maxPricePerLiter);
+
         Double price = gasPrices.get(type);
         if (price == null || price > maxPricePerLiter) {
             numberOfCancellationsTooExpensive.incrementAndGet();
             throw new GasTooExpensiveException();
         }
-
 
         GasPump pump;
         while (true) {
@@ -51,17 +52,20 @@ public class GasStationImpl implements GasStation {
             }
 
             // add the thread to the waiting queue
-            synchronized (waitingQueue) {
-                waitingQueue.add(Thread.currentThread());
-            }
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                // interrupted
+            Object lockObject = new Object();
+            synchronized (lockObject) {
+                waitingQueue.add(lockObject);
+                try {
+                    lockObject.wait(3000);
+                } catch (InterruptedException e) {
+                    // interrupted
+                }
             }
         }
 
-        pump.pumpGas(amountInLiters);
+        synchronized (pump) {
+            pump.pumpGas(amountInLiters);
+        }
         // System.out.printf("Finished buying gas %s.%n", type.toString());
 
         // add back the pump to the available ones
@@ -70,9 +74,13 @@ public class GasStationImpl implements GasStation {
         }
         // interrupt the waiting queue
         synchronized (waitingQueue) {
-            List<Thread> oldWaitingQueue = new ArrayList<>(waitingQueue);
+            List<Object> oldWaitingQueue = new ArrayList<>(waitingQueue);
             waitingQueue.clear();
-            oldWaitingQueue.forEach(thread -> thread.interrupt());
+            for (Object object : oldWaitingQueue) {
+                synchronized (object) {
+                    object.notifyAll();
+                }
+            }
         }
 
         double priceToPay = amountInLiters * price;
