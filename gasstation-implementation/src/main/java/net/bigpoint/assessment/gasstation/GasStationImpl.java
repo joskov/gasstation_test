@@ -20,6 +20,10 @@ public class GasStationImpl implements GasStation {
     private AtomicInteger numberOfCancellationsNoGas = new AtomicInteger();
     private AtomicInteger numberOfCancellationsTooExpensive = new AtomicInteger();
 
+    private List<Thread> waitingQueue = new ArrayList<>();
+
+    private Object gasPumpSearchLock = new Object();
+
     public void addGasPump(GasPump pump) {
         synchronized (gasPumps) {
             gasPumps.add(pump);
@@ -38,38 +42,36 @@ public class GasStationImpl implements GasStation {
             throw new GasTooExpensiveException();
         }
 
-        List<GasPump> filteredPumps = gasPumps.stream()
-                .filter(gasPump -> gasPump.getGasType() == type)
-                .filter(gasPump -> gasPump.getRemainingAmount() >= amountInLiters)
-                .collect(Collectors.toList());
-        if (filteredPumps.isEmpty()) {
-            numberOfCancellationsNoGas.incrementAndGet();
-            throw new NotEnoughGasException();
-        }
 
-        List<GasPump> availableFilteredPumps;
         GasPump pump;
         while (true) {
-            availableFilteredPumps = filteredPumps.stream().filter(gasPump -> availablePumps.contains(gasPump)).collect(Collectors.toList());
-            if (availableFilteredPumps.isEmpty()) {
-                // TODO: synchronize
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // interrupted
-                }
-                continue;
+            pump = getAvailablePump(type, amountInLiters);
+            if (pump != null) {
+                break;
             }
-            synchronized (availablePumps) {
-                pump = availableFilteredPumps.get(0);
-                availablePumps.remove(pump);
+
+            // add the thread to the waiting queue
+            synchronized (waitingQueue) {
+                waitingQueue.add(Thread.currentThread());
             }
-            break;
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                // interrupted
+            }
         }
 
         pump.pumpGas(amountInLiters);
-        availablePumps.add(pump);
-        // TODO: unlock the pump
+        // add back the pump to the available ones
+        synchronized (availablePumps) {
+            availablePumps.add(pump);
+        }
+        // interrupt the waiting queue
+        synchronized (waitingQueue) {
+            List<Thread> oldWaitingQueue = new ArrayList<>(waitingQueue);
+            waitingQueue.clear();
+            oldWaitingQueue.forEach(thread -> thread.interrupt());
+        }
 
         double priceToPay = amountInLiters * price;
         numberOfSales.incrementAndGet();
@@ -100,5 +102,40 @@ public class GasStationImpl implements GasStation {
 
     public void setPrice(GasType type, double price) {
         gasPrices.put(type, price);
+    }
+
+    /**
+     * Gets a free gas pump with enough gas
+     * @param type
+     * @param amountInLiters
+     * @return available pump or null if there is no pump currently available
+     * @throws NotEnoughGasException
+     *              Thrown if there is no pump with enough gas
+     */
+    private GasPump getAvailablePump(GasType type, double amountInLiters) throws NotEnoughGasException {
+        synchronized (gasPumpSearchLock) {
+            // System.out.println(availablePumps);
+            List<GasPump> filteredPumps = gasPumps.stream()
+                    .filter(gasPump -> gasPump.getGasType() == type)
+                    .filter(gasPump -> gasPump.getRemainingAmount() >= amountInLiters)
+                    .collect(Collectors.toList());
+            if (filteredPumps.isEmpty()) {
+                // TODO: move this exception to the buyGas method
+                numberOfCancellationsNoGas.incrementAndGet();
+                throw new NotEnoughGasException();
+            }
+
+            List<GasPump> availableFilteredPumps;
+            availableFilteredPumps = filteredPumps.stream().filter(gasPump -> availablePumps.contains(gasPump)).collect(Collectors.toList());
+            if (availableFilteredPumps.isEmpty()) {
+                return null;
+            } else {
+                GasPump result = availableFilteredPumps.get(0);
+                synchronized (availablePumps) {
+                    availablePumps.remove(result);
+                }
+                return result;
+            }
+        }
     }
 }
